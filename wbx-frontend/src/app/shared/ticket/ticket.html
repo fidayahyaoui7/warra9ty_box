@@ -1,0 +1,47 @@
+@let a = achat();
+<article class="ticket" [class.ticket--warn]="a.statutGarantie === 'BIENTOT_EXPIREE'"
+         [class.ticket--bad]="a.statutGarantie === 'EXPIREE'" [class.ticket--hero]="variant() === 'hero'">
+  <div class="ticket__main">
+    <div class="ticket__top">
+      <div class="ticket__thumb">
+        @if (img(); as src) { <img [src]="src" [alt]="a.produit.nom" /> } @else { <app-icon name="box" [size]="28" /> }
+      </div>
+      <div class="ticket__info">
+        <span class="ticket__brand">{{ a.produit.marque }}</span>
+        <h3 class="ticket__name">{{ a.produit.nom }}</h3>
+        <div class="ticket__meta">
+          <span><app-icon name="store" [size]="15" />{{ a.magasin || 'Magasin non précisé' }}</span>
+          <span><app-icon name="calendar" [size]="15" />{{ a.dateAchat | frDate }}</span>
+          <span class="num">{{ a.prixPaye | dt }}</span>
+          @if (a.numeroSerie) { <span class="mono">N° {{ a.numeroSerie }}</span> }
+        </div>
+        @if (showOwner()) { <span class="ticket__owner muted">Client : {{ owner() }}</span> }
+        @if (variant() === 'hero') {
+          <p class="ticket__note">Garantie de {{ a.dureeGarantie }} mois, écoulée à {{ elapsed() }} %.@if (a.statutGarantie === 'BIENTOT_EXPIREE') { Pensez à ouvrir une réclamation avant la date de fin si le produit pose problème. }</p>
+        }
+      </div>
+    </div>
+    <div class="ticket__actions">
+      <button type="button" class="btn btn--sm" (click)="viewInvoice.emit(a)"><app-icon name="eye" [size]="16" />Facture</button>
+      <button type="button" class="icon-btn" title="Télécharger la facture" aria-label="Télécharger la facture" (click)="download.emit(a)"><app-icon name="download" [size]="18" /></button>
+      @if (a.photoAchat) {
+        <button type="button" class="icon-btn" title="Voir la photo de l’achat" aria-label="Voir la photo de l’achat" (click)="viewPhoto.emit(a)"><app-icon name="image" [size]="18" /></button>
+      }
+      <span class="grow"></span>
+      @if (a.statutGarantie !== 'EXPIREE') {
+        <button type="button" class="btn btn--sm" (click)="claim.emit(a)"><app-icon name="lifebuoy" [size]="16" />Réclamer</button>
+      }
+      @if (variant() === 'row') {
+        <button type="button" class="icon-btn" title="Modifier" aria-label="Modifier l’achat" (click)="edit.emit(a)"><app-icon name="pencil" [size]="18" /></button>
+        <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" aria-label="Supprimer l’achat" (click)="remove.emit(a)"><app-icon name="trash" [size]="18" /></button>
+      }
+    </div>
+    <div class="ticket__bar" role="img" [attr.aria-label]="'Garantie écoulée à ' + elapsed() + ' %'"><i [style.width.%]="elapsed()"></i></div>
+  </div>
+  <div class="ticket__stub">
+    <span class="ticket__count">{{ count() }}</span>
+    <span class="ticket__unit">{{ unit() }}</span>
+    <app-badge kind="garantie" [value]="a.statutGarantie" />
+    <span class="ticket__end">fin le {{ a.dateFinGarantie | frDate }}</span>
+  </div>
+</article>

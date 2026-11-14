@@ -1,0 +1,123 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Catalogue</h1>
+      <p>{{ produits().length }} produits dans {{ categories().length }} catégories. Choisissez celui que vous avez acheté pour enregistrer sa garantie.</p>
+    </div>
+    @if (auth.isAdmin()) {
+      <div class="actions"><button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Nouveau produit</button></div>
+    }
+  </header>
+
+  <div class="toolbar">
+    <div class="input-wrap grow">
+      <app-icon name="search" [size]="18" />
+      <input class="input" type="search" placeholder="Rechercher un produit, une marque…" aria-label="Rechercher un produit" [value]="q()" (input)="q.set($any($event.target).value)" />
+    </div>
+  </div>
+  <div class="chips" style="margin-bottom:1.25rem" role="group" aria-label="Filtrer par catégorie">
+    <button type="button" class="chip" [class.is-active]="cat() === null" (click)="cat.set(null)">Toutes <span class="count">{{ counts().total }}</span></button>
+    @for (c of categories(); track c.id) {
+      <button type="button" class="chip" [class.is-active]="cat() === c.id" (click)="cat.set(c.id!)">{{ c.libelle }} <span class="count">{{ counts().by[c.id!] || 0 }}</span></button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="pgrid">@for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) { <div class="skeleton" style="height:340px"></div> }</div>
+  } @else if (error()) {
+    <div class="empty"><span class="empty__icon"><app-icon name="alert" /></span><h3>Catalogue indisponible</h3><p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="search" /></span>
+      <h3>Aucun produit ne correspond</h3><p>Essayez un autre mot-clé ou revenez à toutes les catégories.</p>
+      <button type="button" class="btn" (click)="reset()">Réinitialiser les filtres</button></div>
+  } @else {
+    <div class="pgrid">
+      @for (p of filtered(); track p.id) {
+        <div style="position:relative">
+          <button type="button" class="pcard" style="width:100%;height:100%" (click)="detail.set(p)" [attr.aria-label]="'Détails de ' + p.nom">
+            <span class="pcard__img">@if (img(p); as src) { <img [src]="src" [alt]="p.nom" loading="lazy" /> } @else { <app-icon name="box" [size]="40" /> }</span>
+            <span class="pcard__body">
+              <span class="pcard__brand">{{ p.marque }}</span>
+              <span class="pcard__name">{{ p.nom }}</span>
+              <span class="pcard__foot">
+                <span class="pcard__price num">{{ p.prix | dt }}</span>
+                <span class="pcard__warranty"><app-icon name="shield" [size]="14" />{{ p.dureeGarantieStandard }} mois</span>
+              </span>
+            </span>
+          </button>
+          @if (auth.isAdmin()) {
+            <span class="pcard__admin">
+              <button type="button" class="icon-btn" title="Modifier" [attr.aria-label]="'Modifier ' + p.nom" (click)="openForm(p)"><app-icon name="pencil" [size]="17" /></button>
+              <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" [attr.aria-label]="'Supprimer ' + p.nom" (click)="remove(p)"><app-icon name="trash" [size]="17" /></button>
+            </span>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@if (detail(); as p) {
+  <app-modal [title]="p.nom" size="wide" (closed)="detail.set(null)">
+    <div class="pdetail">
+      <div class="pdetail__img">@if (img(p); as src) { <img [src]="src" [alt]="p.nom" /> }</div>
+      <div>
+        <span class="badge badge--info">{{ p.categorie.libelle }}</span>
+        <p class="desc">{{ p.description || 'Aucune description.' }}</p>
+        <dl class="specs">
+          <dt>Marque</dt><dd>{{ p.marque }}</dd>
+          <dt>Modèle</dt><dd class="mono">{{ p.modele || '–' }}</dd>
+          <dt>Prix catalogue</dt><dd>{{ p.prix | dt }}</dd>
+          <dt>Garantie standard</dt><dd>{{ p.dureeGarantieStandard }} mois</dd>
+        </dl>
+        <div class="actions" style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <button type="button" class="btn btn--primary" (click)="bought(p)"><app-icon name="receipt" [size]="18" />J’ai acheté ce produit</button>
+          @if (auth.isAdmin()) {
+            <button type="button" class="btn" (click)="detail.set(null); openForm(p)"><app-icon name="pencil" [size]="16" />Modifier</button>
+          }
+        </div>
+      </div>
+    </div>
+  </app-modal>
+}
+
+@if (formOpen()) {
+  <app-modal [title]="editing() ? 'Modifier le produit' : 'Nouveau produit'" size="wide" (closed)="closeForm()">
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field"><label for="p-nom">Nom<span class="req">*</span></label>
+          <input id="p-nom" class="input" formControlName="nom" placeholder="Galaxy S25 5G 12/256 Go" [class.is-invalid]="bad('nom')" />
+          @if (bad('nom')) { <span class="error">Le nom est obligatoire.</span> }</div>
+        <div class="field"><label for="p-marque">Marque<span class="req">*</span></label>
+          <input id="p-marque" class="input" formControlName="marque" placeholder="Samsung" [class.is-invalid]="bad('marque')" />
+          @if (bad('marque')) { <span class="error">La marque est obligatoire.</span> }</div>
+        <div class="field"><label for="p-modele">Modèle</label>
+          <input id="p-modele" class="input mono" formControlName="modele" placeholder="SM-S931B" /></div>
+        <div class="field"><label for="p-cat">Catégorie<span class="req">*</span></label>
+          <select id="p-cat" class="select" formControlName="categorieId" [class.is-invalid]="bad('categorieId')">
+            <option [ngValue]="null" disabled>Choisir…</option>
+            @for (c of categories(); track c.id) { <option [ngValue]="c.id">{{ c.libelle }}</option> }
+          </select>
+          @if (bad('categorieId')) { <span class="error">Choisissez une catégorie.</span> }</div>
+        <div class="field"><label for="p-prix">Prix (DT)<span class="req">*</span></label>
+          <input id="p-prix" class="input num" type="number" min="0" step="0.001" formControlName="prix" [class.is-invalid]="bad('prix')" />
+          @if (bad('prix')) { <span class="error">Saisissez un prix supérieur à 0.</span> }</div>
+        <div class="field"><label for="p-garantie">Garantie standard (mois)<span class="req">*</span></label>
+          <input id="p-garantie" class="input num" type="number" min="1" step="1" formControlName="dureeGarantieStandard" [class.is-invalid]="bad('dureeGarantieStandard')" />
+          @if (bad('dureeGarantieStandard')) { <span class="error">Saisissez une durée d’au moins 1 mois.</span> }</div>
+        <div class="field span-2"><label for="p-desc">Description</label>
+          <textarea id="p-desc" class="textarea" formControlName="description" maxlength="1000" placeholder="Caractéristiques principales"></textarea></div>
+        <div class="span-2">
+          <app-file-drop label="Photo du produit" kind="image" [maxMb]="2" [required]="!editing()" [existing]="editing()?.photo ?? null" [(file)]="photo" />
+          @if (photoMissing()) { <span class="field"><span class="error" style="margin-top:.35rem">La photo est obligatoire pour un nouveau produit.</span></span> }
+        </div>
+      </div>
+      @if (formError(); as e) { <div class="form-error" role="alert" style="margin-top:1rem"><app-icon name="alert" [size]="18" /><span>{{ e }}</span></div> }
+      <div class="form-actions">
+        <button type="button" class="btn" (click)="closeForm()">Annuler</button>
+        <button type="submit" class="btn btn--primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> }{{ editing() ? 'Enregistrer' : 'Ajouter le produit' }}</button>
+      </div>
+    </form>
+  </app-modal>
+}

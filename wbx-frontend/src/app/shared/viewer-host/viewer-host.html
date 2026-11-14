@@ -1,0 +1,18 @@
+@if (viewer.doc(); as d) {
+  <app-modal [title]="d.title" size="xl" (closed)="viewer.close()">
+    <div class="viewer">
+      @if (loading()) {
+        <div class="viewer__state"><span class="spinner"></span></div>
+      } @else if (error()) {
+        <div class="viewer__state">{{ error() }}</div>
+      } @else if (d.kind === 'pdf' && safe()) {
+        <iframe [src]="safe()!" [title]="d.title"></iframe>
+      } @else if (raw()) {
+        <img class="viewer__img" [src]="raw()!" [alt]="d.title" />
+      }
+      <div class="form-actions" style="margin-top:0">
+        <button type="button" class="btn btn--primary" [disabled]="!blob()" (click)="download()"><app-icon name="download" [size]="18" />Télécharger</button>
+      </div>
+    </div>
+  </app-modal>
+}

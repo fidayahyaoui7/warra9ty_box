@@ -1,0 +1,144 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Bonjour {{ auth.session()?.prenom || 'et bienvenue' }}</h1>
+      <p>{{ summary() }}</p>
+    </div>
+    <div class="actions">
+      <a class="btn btn--primary" routerLink="/achats" [queryParams]="{ nouveau: 1 }"><app-icon name="plus" [size]="18" />Ajouter un achat</a>
+    </div>
+  </header>
+
+  @if (auth.isAdmin() && users.pending() > 0) {
+    <div class="notice">
+      <app-icon name="bell" />
+      <span class="grow">{{ users.pending() }} {{ users.pending() > 1 ? 'comptes attendent' : 'compte attend' }} votre activation.</span>
+      <a class="btn btn--sm" routerLink="/utilisateurs">Voir les comptes</a>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="skeleton" style="height:110px"></div>
+    <div class="skeleton" style="height:230px;margin-top:1.25rem"></div>
+  } @else if (error()) {
+    <div class="empty">
+      <span class="empty__icon"><app-icon name="alert" /></span>
+      <h3>Impossible de charger vos données</h3>
+      <p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button>
+    </div>
+  } @else {
+    <h2 class="sr-only">Chiffres clés</h2>
+    <div class="ledger">
+      <div class="ledger__item">
+        <div class="ledger__label"><span class="ledger__dot ledger__dot--info"></span>{{ auth.isAdmin() ? 'Achats enregistrés' : 'Mes achats' }}</div>
+        <div class="ledger__value">{{ stats().total }}</div>
+        <div class="ledger__sub">{{ money(stats().spent) }} au total</div>
+      </div>
+      <div class="ledger__item">
+        <div class="ledger__label"><span class="ledger__dot ledger__dot--ok"></span>Garanties actives</div>
+        <div class="ledger__value">{{ stats().active }}</div>
+        <div class="ledger__sub">plus de 30 jours restants</div>
+      </div>
+      <div class="ledger__item">
+        <div class="ledger__label"><span class="ledger__dot ledger__dot--warn"></span>Bientôt expirées</div>
+        <div class="ledger__value">{{ stats().soon }}</div>
+        <div class="ledger__sub">30 jours ou moins</div>
+      </div>
+      <div class="ledger__item">
+        <div class="ledger__label"><span class="ledger__dot ledger__dot--bad"></span>Réclamations ouvertes</div>
+        <div class="ledger__value">{{ openClaims() }}</div>
+        <div class="ledger__sub">{{ inProgress() }} en cours de traitement</div>
+      </div>
+    </div>
+
+    @if (stats().total === 0) {
+      <div class="empty" style="margin-top:1.25rem">
+        <span class="empty__icon"><app-icon name="receipt" /></span>
+        <h3>Aucun achat pour le moment</h3>
+        <p>Ajoutez un produit avec sa facture PDF : la date de fin de garantie est calculée automatiquement.</p>
+        <a class="btn btn--primary" routerLink="/achats" [queryParams]="{ nouveau: 1 }"><app-icon name="plus" [size]="18" />Ajouter mon premier achat</a>
+      </div>
+    } @else {
+      @if (next(); as n) {
+        <div class="section-title"><h2>Prochaine échéance</h2></div>
+        <app-ticket [achat]="n" variant="hero" [showOwner]="auth.isAdmin()"
+                    (viewInvoice)="docs.facture($event)" (download)="docs.downloadFacture($event)"
+                    (viewPhoto)="docs.photo($event)" (claim)="claim($event)" />
+      }
+
+      <div class="dash-grid" style="margin-top:1.25rem">
+        <section class="panel">
+          <div class="panel__head">
+            <div><h2>Échéancier des garanties</h2><p>De la date d’achat à la fin de garantie, sur une même ligne de temps.</p></div>
+          </div>
+          @if (timeline(); as t) {
+            <div class="tl">
+              <div class="tl__axis">
+                <span></span>
+                <div class="tl__ticks" aria-hidden="true">
+                  @for (k of t.ticks; track k.left) { <span [style.left.%]="k.left">{{ k.label }}</span> }
+                </div>
+              </div>
+              <div class="tl__rows">
+                @for (r of t.rows; track r.a.id) {
+                  <div class="tl__row">
+                    <div class="tl__label">
+                      <strong>{{ r.a.produit.nom }}</strong>
+                      <small>fin le {{ r.a.dateFinGarantie | frDate }}</small>
+                    </div>
+                    <div class="tl__track">
+                      <div class="tl__bar" [class]="'tl__bar tl__bar--' + r.tone" [style.left.%]="r.left" [style.width.%]="r.width"
+                           [attr.title]="r.a.produit.nom + ' : ' + (r.a.dateAchat | frDate) + ' → ' + (r.a.dateFinGarantie | frDate)">
+                        <i [style.width.%]="r.elapsed"></i>
+                      </div>
+                    </div>
+                  </div>
+                }
+                <div class="tl__overlay"><div class="tl__today" [style.left.%]="t.today"></div></div>
+              </div>
+            </div>
+          }
+        </section>
+
+        <div class="stack">
+          <section class="panel">
+            <div class="panel__head"><div><h2>État des garanties</h2><p>{{ stats().total }} {{ stats().total > 1 ? 'produits suivis' : 'produit suivi' }}</p></div></div>
+            <div class="panel__body">
+              <div class="seg" role="img" [attr.aria-label]="'Actives ' + stats().active + ', bientôt expirées ' + stats().soon + ', expirées ' + stats().expired">
+                @if (stats().active) { <div class="seg__part seg__part--ok" [style.flex-grow]="stats().active">{{ stats().active }}</div> }
+                @if (stats().soon) { <div class="seg__part seg__part--warn" [style.flex-grow]="stats().soon">{{ stats().soon }}</div> }
+                @if (stats().expired) { <div class="seg__part seg__part--bad" [style.flex-grow]="stats().expired">{{ stats().expired }}</div> }
+              </div>
+              <div class="legend">
+                <span><app-badge value="ACTIVE" /></span>
+                <span><app-badge value="BIENTOT_EXPIREE" /></span>
+                <span><app-badge value="EXPIREE" /></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel__head">
+              <div><h2>Réclamations récentes</h2></div>
+              <a class="btn btn--sm" routerLink="/reclamations">Tout voir</a>
+            </div>
+            @if (recentClaims().length) {
+              <ul class="mini-list">
+                @for (r of recentClaims(); track r.id) {
+                  <li>
+                    <span class="thumb">@if (photo(r.achat); as p) { <img [src]="p" alt="" /> }</span>
+                    <span class="grow"><strong>{{ r.motif }}</strong><small>{{ r.achat.produit.nom }} · {{ r.dateOuverture | frDate }}</small></span>
+                    <app-badge kind="reclamation" [value]="r.statut" />
+                  </li>
+                }
+              </ul>
+            } @else {
+              <div class="panel__body muted">Aucune réclamation. Si un produit tombe en panne pendant sa garantie, ouvrez-en une depuis la carte de l’achat.</div>
+            }
+          </section>
+        </div>
+      </div>
+    }
+  }
+</div>

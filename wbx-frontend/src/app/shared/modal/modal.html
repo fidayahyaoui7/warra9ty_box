@@ -1,0 +1,10 @@
+<div class="modal-backdrop" (mousedown)="onBackdrop($event)">
+  <div class="modal" [class.modal--wide]="size() === 'wide'" [class.modal--xl]="size() === 'xl'"
+       role="dialog" aria-modal="true" [attr.aria-label]="title()">
+    <header class="modal__head">
+      <h2>{{ title() }}</h2>
+      <button type="button" class="icon-btn" (click)="closed.emit()" aria-label="Fermer"><app-icon name="x" /></button>
+    </header>
+    <div class="modal__body"><ng-content /></div>
+  </div>
+</div>

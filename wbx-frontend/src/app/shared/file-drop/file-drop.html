@@ -1,0 +1,23 @@
+<div class="field">
+  <span class="label">{{ label() }}@if (required()) {<span class="req">*</span>}</span>
+  <label class="drop" [class.is-over]="over()" [class.is-invalid]="!!error()"
+         (dragover)="onOver($event)" (dragleave)="over.set(false)" (drop)="onDrop($event)">
+    <input type="file" [accept]="rule().accept" (change)="onPick($event)" />
+    <span class="drop__icon">
+      @if (preview(); as p) { <img [src]="p" alt="" /> } @else { <app-icon [name]="kind() === 'pdf' ? 'file' : 'image'" [size]="22" /> }
+    </span>
+    <span class="drop__text">
+      @if (file(); as f) {
+        <strong>{{ f.name }}</strong><small>{{ size(f.size) }} · cliquez pour remplacer</small>
+      } @else if (existing()) {
+        <strong>{{ existing() }}</strong><small>Fichier actuel, conservé si vous n’en choisissez pas un autre</small>
+      } @else {
+        <strong>Choisir un fichier ou le glisser ici</strong><small>{{ rule().hint }} · {{ maxMb() }} Mo maximum</small>
+      }
+    </span>
+    @if (file()) {
+      <button type="button" class="icon-btn" aria-label="Retirer le fichier" (click)="clear($event)"><app-icon name="x" [size]="18" /></button>
+    }
+  </label>
+  @if (error(); as e) { <span class="error">{{ e }}</span> }
+</div>

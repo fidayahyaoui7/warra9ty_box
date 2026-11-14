@@ -1,0 +1,40 @@
+<div class="page">
+  <header class="page-head"><div><h1>Mon profil</h1><p>Vos informations personnelles et votre photo.</p></div></header>
+
+  <div class="profile">
+    <aside class="panel profile__card">
+      <app-avatar [user]="auth.session()" [size]="112" />
+      <h2 style="margin-top:.6rem">{{ name() }}</h2>
+      <span class="muted">{{ auth.session()?.email }}</span>
+      <span class="badge" [class]="'badge ' + (auth.isAdmin() ? 'badge--info' : 'badge--neutral')" style="margin-top:.6rem">{{ auth.isAdmin() ? 'Administrateur' : 'Client' }}</span>
+    </aside>
+
+    <form class="panel" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="panel__head"><h2>Informations</h2></div>
+      <div class="panel__body">
+        <div class="form-grid">
+          <div class="field"><label for="p-prenom">Prénom<span class="req">*</span></label>
+            <input id="p-prenom" class="input" formControlName="prenom" [class.is-invalid]="bad('prenom')" />
+            @if (bad('prenom')) { <span class="error">Obligatoire.</span> }</div>
+          <div class="field"><label for="p-nom">Nom<span class="req">*</span></label>
+            <input id="p-nom" class="input" formControlName="nom" [class.is-invalid]="bad('nom')" />
+            @if (bad('nom')) { <span class="error">Obligatoire.</span> }</div>
+          <div class="field"><label for="p-email">Adresse e-mail</label>
+            <input id="p-email" class="input" [value]="auth.session()?.email" readonly />
+            <span class="hint">L’adresse e-mail ne peut pas être modifiée.</span></div>
+          <div class="field"><label for="p-tel">Téléphone</label>
+            <input id="p-tel" class="input" type="tel" formControlName="tel" /></div>
+          <div class="field span-2"><label for="p-pass">Nouveau mot de passe</label>
+            <input id="p-pass" class="input" type="password" formControlName="password" autocomplete="new-password" [class.is-invalid]="bad('password')" />
+            <span class="hint">Laissez vide pour conserver le mot de passe actuel.</span>
+            @if (bad('password')) { <span class="error">Le mot de passe doit contenir au moins 6 caractères.</span> }</div>
+          <div class="span-2"><app-file-drop label="Photo de profil" kind="image" [maxMb]="1" [existing]="auth.session()?.photoProfil ? 'Photo actuelle' : null" [(file)]="photo" /></div>
+        </div>
+        @if (formError(); as e) { <div class="form-error" role="alert" style="margin-top:1rem"><app-icon name="alert" [size]="18" /><span>{{ e }}</span></div> }
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> }Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

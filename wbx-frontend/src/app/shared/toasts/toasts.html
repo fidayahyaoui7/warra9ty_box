@@ -1,0 +1,9 @@
+<div class="toasts" aria-live="polite">
+  @for (t of toast.toasts(); track t.id) {
+    <div class="toast" [class]="'toast toast--' + t.kind" role="status">
+      <app-icon [name]="t.kind === 'success' ? 'check' : t.kind === 'error' ? 'alert' : 'info'" [size]="20" />
+      <p>{{ t.text }}</p>
+      <button type="button" aria-label="Fermer" (click)="toast.dismiss(t.id)"><app-icon name="x" [size]="16" /></button>
+    </div>
+  }
+</div>

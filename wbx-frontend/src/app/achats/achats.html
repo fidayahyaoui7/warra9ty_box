@@ -1,0 +1,111 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>{{ auth.isAdmin() ? 'Achats' : 'Mes achats' }}</h1>
+      <p>{{ auth.isAdmin() ? 'Tous les achats enregistrés par les clients, avec leur facture.' : 'Chaque achat garde sa facture PDF et sa date de fin de garantie.' }}</p>
+    </div>
+    <div class="actions"><button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Ajouter un achat</button></div>
+  </header>
+
+  @if (list().length > 0 || loading()) {
+    <div class="toolbar">
+      <div class="input-wrap grow">
+        <app-icon name="search" [size]="18" />
+        <input class="input" type="search" placeholder="Produit, magasin, numéro de série…" aria-label="Rechercher un achat" [value]="q()" (input)="q.set($any($event.target).value)" />
+      </div>
+      <div class="chips" role="group" aria-label="Filtrer par état de la garantie">
+        <button type="button" class="chip" [class.is-active]="filter() === 'ALL'" (click)="filter.set('ALL')">Tous <span class="count">{{ counts().ALL }}</span></button>
+        <button type="button" class="chip" [class.is-active]="filter() === 'ACTIVE'" (click)="filter.set('ACTIVE')">Actives <span class="count">{{ counts().ACTIVE }}</span></button>
+        <button type="button" class="chip" [class.is-active]="filter() === 'BIENTOT_EXPIREE'" (click)="filter.set('BIENTOT_EXPIREE')">Bientôt expirées <span class="count">{{ counts().BIENTOT_EXPIREE }}</span></button>
+        <button type="button" class="chip" [class.is-active]="filter() === 'EXPIREE'" (click)="filter.set('EXPIREE')">Expirées <span class="count">{{ counts().EXPIREE }}</span></button>
+      </div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="tickets">@for (i of [1, 2, 3, 4]; track i) { <div class="skeleton" style="height:190px"></div> }</div>
+  } @else if (error()) {
+    <div class="empty"><span class="empty__icon"><app-icon name="alert" /></span><h3>Achats indisponibles</h3><p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button></div>
+  } @else if (list().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="receipt" /></span>
+      <h3>Aucun achat enregistré</h3>
+      <p>Ajoutez un produit avec sa facture PDF. La date de fin de garantie est calculée pour vous et une alerte part 30 jours avant.</p>
+      <button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Ajouter mon premier achat</button></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="search" /></span><h3>Aucun achat ne correspond</h3>
+      <p>Modifiez la recherche ou le filtre pour voir d’autres achats.</p>
+      <button type="button" class="btn" (click)="q.set(''); filter.set('ALL')">Réinitialiser</button></div>
+  } @else {
+    <div class="tickets">
+      @for (a of filtered(); track a.id) {
+        <app-ticket [achat]="a" [showOwner]="auth.isAdmin()"
+          (viewInvoice)="docs.facture($event)" (download)="docs.downloadFacture($event)" (viewPhoto)="docs.photo($event)"
+          (claim)="claim($event)" (edit)="openForm($event)" (remove)="remove($event)" />
+      }
+    </div>
+  }
+</div>
+
+@if (formOpen()) {
+  <app-modal [title]="editing() ? 'Modifier l’achat' : 'Ajouter un achat'" size="wide" (closed)="closeForm()">
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field span-2">
+          <label for="a-produit">Produit<span class="req">*</span></label>
+          <select id="a-produit" class="select" formControlName="produitId" [class.is-invalid]="bad('produitId')">
+            <option [ngValue]="null" disabled>Choisir dans le catalogue…</option>
+            @for (g of groups(); track g.label) {
+              <optgroup [label]="g.label">@for (p of g.items; track p.id) { <option [ngValue]="p.id">{{ p.marque }} · {{ p.nom }}</option> }</optgroup>
+            }
+          </select>
+          @if (bad('produitId')) { <span class="error">Choisissez le produit acheté.</span> }
+        </div>
+
+        @if (selected(); as p) {
+          <div class="preview-card span-2">
+            <span class="thumb">@if (img(p); as src) { <img [src]="src" alt="" /> }</span>
+            <span class="grow"><strong>{{ p.nom }}</strong><small>Prix catalogue {{ p.prix | dt }} · garantie standard {{ p.dureeGarantieStandard }} mois</small></span>
+          </div>
+        }
+
+        <div class="field"><label for="a-date">Date d’achat<span class="req">*</span></label>
+          <input id="a-date" class="input" type="date" formControlName="dateAchat" [max]="today" [class.is-invalid]="bad('dateAchat')" />
+          @if (bad('dateAchat')) { <span class="error">Indiquez une date d’achat qui n’est pas dans le futur.</span> }</div>
+        <div class="field"><label for="a-prix">Prix payé (DT)<span class="req">*</span></label>
+          <input id="a-prix" class="input num" type="number" min="0" step="0.001" formControlName="prixPaye" [class.is-invalid]="bad('prixPaye')" />
+          @if (bad('prixPaye')) { <span class="error">Saisissez un montant supérieur à 0.</span> }</div>
+        <div class="field"><label for="a-magasin">Magasin</label>
+          <input id="a-magasin" class="input" formControlName="magasin" placeholder="Tunisianet, MyTek, Spacenet…" /></div>
+        <div class="field"><label for="a-serie">Numéro de série</label>
+          <input id="a-serie" class="input mono" formControlName="numeroSerie" placeholder="R58X30A1B2C" /></div>
+        <div class="field span-2">
+          <label for="a-duree">Durée de garantie (mois)</label>
+          <input id="a-duree" class="input num" type="number" min="1" step="1" formControlName="dureeGarantie" [placeholder]="selected() ? 'Standard : ' + selected()!.dureeGarantieStandard : 'Durée du produit'" />
+          @if (endPreview(); as end) {
+            <span class="hint">La garantie se terminera le <strong>{{ end | frDate: 'long' }}</strong>. Laissez vide pour la durée standard du produit.</span>
+          } @else { <span class="hint">Laissez vide pour utiliser la durée standard du produit.</span> }
+        </div>
+
+        @if (auth.isAdmin() && !editing()) {
+          <div class="field span-2">
+            <label for="a-user">Client concerné</label>
+            <select id="a-user" class="select" formControlName="userId">
+              <option [ngValue]="null">Moi-même</option>
+              @for (u of users(); track u.id) { <option [ngValue]="u.id">{{ name(u) }} ({{ u.email }})</option> }
+            </select>
+          </div>
+        }
+
+        <div class="span-2"><app-file-drop label="Facture d’achat" kind="pdf" [maxMb]="5" [required]="!editing()" [existing]="editing() ? 'Facture enregistrée' : null" [(file)]="facture" />
+          @if (factureMissing()) { <span class="field"><span class="error" style="margin-top:.35rem">La facture PDF est obligatoire.</span></span> }</div>
+        <div class="span-2"><app-file-drop label="Photo de l’achat (état du produit, numéro de série)" kind="image" [maxMb]="2" [existing]="editing()?.photoAchat ? 'Photo enregistrée' : null" [(file)]="photo" /></div>
+      </div>
+      @if (formError(); as e) { <div class="form-error" role="alert" style="margin-top:1rem"><app-icon name="alert" [size]="18" /><span>{{ e }}</span></div> }
+      <div class="form-actions">
+        <button type="button" class="btn" (click)="closeForm()">Annuler</button>
+        <button type="submit" class="btn btn--primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> }{{ editing() ? 'Enregistrer' : 'Ajouter l’achat' }}</button>
+      </div>
+    </form>
+  </app-modal>
+}

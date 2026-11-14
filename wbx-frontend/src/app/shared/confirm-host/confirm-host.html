@@ -1,0 +1,11 @@
+@if (confirm.current(); as c) {
+  <app-modal [title]="c.title" (closed)="confirm.answer(false)">
+    <div class="confirm">
+      <p>{{ c.message }}</p>
+      <div class="form-actions">
+        <button type="button" class="btn" (click)="confirm.answer(false)">Annuler</button>
+        <button type="button" class="btn" [class.btn--danger-solid]="c.danger" [class.btn--primary]="!c.danger" (click)="confirm.answer(true)">{{ c.confirmLabel || 'Confirmer' }}</button>
+      </div>
+    </div>
+  </app-modal>
+}

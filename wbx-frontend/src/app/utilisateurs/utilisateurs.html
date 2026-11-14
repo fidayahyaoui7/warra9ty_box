@@ -1,0 +1,113 @@
+<div class="page">
+  <header class="page-head">
+    <div><h1>Utilisateurs</h1><p>Activez les nouveaux comptes et gérez les rôles.</p></div>
+    <div class="actions"><button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Nouvel utilisateur</button></div>
+  </header>
+
+  @if (pending().length > 0) {
+    <section class="panel" style="margin-bottom:1.25rem;border-color:#ecd28f">
+      <div class="panel__head" style="background:var(--warn-bg)">
+        <div><h2>À activer</h2><p style="color:var(--warn-text)">{{ pending().length }} {{ pending().length > 1 ? 'comptes ne peuvent' : 'compte ne peut' }} pas encore se connecter.</p></div>
+      </div>
+      <ul class="mini-list">
+        @for (u of pending(); track u.id) {
+          <li>
+            <app-avatar [user]="u" [size]="40" />
+            <span class="grow"><strong>{{ name(u) }}</strong><small>{{ u.email }}{{ u.tel ? ' · ' + u.tel : '' }}</small></span>
+            <button type="button" class="btn btn--sm btn--primary" (click)="toggle(u, true)"><app-icon name="check" [size]="16" />Activer le compte</button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <div class="toolbar">
+    <div class="input-wrap grow">
+      <app-icon name="search" [size]="18" />
+      <input class="input" type="search" placeholder="Nom, e-mail, téléphone…" aria-label="Rechercher un utilisateur" [value]="q()" (input)="q.set($any($event.target).value)" />
+    </div>
+    <div class="chips" role="group" aria-label="Filtrer les comptes">
+      <button type="button" class="chip" [class.is-active]="filter() === 'ALL'" (click)="filter.set('ALL')">Tous <span class="count">{{ list().length }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'ACTIVE'" (click)="filter.set('ACTIVE')">Actifs <span class="count">{{ list().length - pending().length }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'PENDING'" (click)="filter.set('PENDING')">En attente <span class="count">{{ pending().length }}</span></button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="skeleton" style="height:300px"></div>
+  } @else if (error()) {
+    <div class="empty"><span class="empty__icon"><app-icon name="alert" /></span><h3>Utilisateurs indisponibles</h3><p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="users" /></span><h3>Aucun utilisateur ne correspond</h3>
+      <button type="button" class="btn" (click)="q.set(''); filter.set('ALL')">Réinitialiser</button></div>
+  } @else {
+    <div class="panel table-wrap">
+      <table class="table">
+        <thead><tr><th>Utilisateur</th><th>Téléphone</th><th>Rôle</th><th>Compte actif</th><th></th></tr></thead>
+        <tbody>
+          @for (u of filtered(); track u.id) {
+            <tr>
+              <td><div class="cell-user"><app-avatar [user]="u" [size]="38" />
+                <span><strong>{{ name(u) }}</strong><small>{{ u.email }}</small></span></div></td>
+              <td>{{ u.tel || '–' }}</td>
+              <td>@for (r of u.roles; track r.id) { <span class="badge" [class]="'badge ' + (r.libelle === 'ADMIN' ? 'badge--info' : 'badge--neutral')">{{ r.libelle === 'ADMIN' ? 'Admin' : 'Client' }}</span> }</td>
+              <td>
+                <label class="switch" [title]="isMe(u) ? 'Vous ne pouvez pas désactiver votre compte' : u.enabled ? 'Désactiver' : 'Activer'">
+                  <input type="checkbox" [checked]="u.enabled" [disabled]="isMe(u)" (change)="toggle(u, $any($event.target).checked)" [attr.aria-label]="'Compte actif : ' + name(u)" />
+                  <span></span>
+                </label>
+              </td>
+              <td><div class="actions">
+                <button type="button" class="icon-btn" title="Modifier" [attr.aria-label]="'Modifier ' + name(u)" (click)="openForm(u)"><app-icon name="pencil" [size]="18" /></button>
+                <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" [attr.aria-label]="'Supprimer ' + name(u)" [disabled]="isMe(u)" (click)="remove(u)"><app-icon name="trash" [size]="18" /></button>
+              </div></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (formOpen()) {
+  <app-modal [title]="editing() ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'" size="wide" (closed)="formOpen.set(false)">
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field"><label for="u-prenom">Prénom<span class="req">*</span></label>
+          <input id="u-prenom" class="input" formControlName="prenom" [class.is-invalid]="bad('prenom')" />
+          @if (bad('prenom')) { <span class="error">Obligatoire.</span> }</div>
+        <div class="field"><label for="u-nom">Nom<span class="req">*</span></label>
+          <input id="u-nom" class="input" formControlName="nom" [class.is-invalid]="bad('nom')" />
+          @if (bad('nom')) { <span class="error">Obligatoire.</span> }</div>
+        <div class="field"><label for="u-email">Adresse e-mail<span class="req">*</span></label>
+          <input id="u-email" class="input" type="email" formControlName="email" [class.is-invalid]="bad('email')" />
+          @if (bad('email')) { <span class="error">Saisissez une adresse e-mail valide.</span> }</div>
+        <div class="field"><label for="u-tel">Téléphone</label>
+          <input id="u-tel" class="input" type="tel" formControlName="tel" /></div>
+        <div class="field span-2"><label for="u-pass">Mot de passe @if (!editing()) {<span class="req">*</span>}</label>
+          <input id="u-pass" class="input" type="password" formControlName="password" autocomplete="new-password" [class.is-invalid]="bad('password')" />
+          <span class="hint">{{ editing() ? 'Laissez vide pour conserver le mot de passe actuel.' : '6 caractères minimum.' }}</span>
+          @if (bad('password')) { <span class="error">Le mot de passe doit contenir au moins 6 caractères.</span> }</div>
+        <div class="field span-2">
+          <span class="label">Rôles</span>
+          <div class="checks">
+            @for (r of roleNames; track r) {
+              <label class="check"><input type="checkbox" [checked]="roles().includes(r)" [disabled]="editing() && isMe(editing()!) && r === 'ADMIN'" (change)="toggleRole(r, $any($event.target).checked)" />{{ r === 'ADMIN' ? 'Administrateur' : 'Client' }}</label>
+            }
+          </div>
+          @if (rolesMissing()) { <span class="error">Choisissez au moins un rôle.</span> }
+        </div>
+        <div class="span-2" style="display:flex;align-items:center;gap:.75rem">
+          <label class="switch"><input type="checkbox" formControlName="enabled" aria-label="Compte actif" /><span></span></label>
+          <span><strong>Compte actif</strong><br /><span class="muted">Un compte inactif ne peut pas se connecter.</span></span>
+        </div>
+      </div>
+      @if (formError(); as e) { <div class="form-error" role="alert" style="margin-top:1rem"><app-icon name="alert" [size]="18" /><span>{{ e }}</span></div> }
+      <div class="form-actions">
+        <button type="button" class="btn" (click)="formOpen.set(false)">Annuler</button>
+        <button type="submit" class="btn btn--primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> }{{ editing() ? 'Enregistrer' : 'Créer l’utilisateur' }}</button>
+      </div>
+    </form>
+  </app-modal>
+}

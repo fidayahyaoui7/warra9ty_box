@@ -1,0 +1,115 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>{{ auth.isAdmin() ? 'Réclamations' : 'Mes réclamations' }}</h1>
+      <p>{{ auth.isAdmin() ? 'Traitez les demandes de SAV : prise en charge, puis résolution ou refus.' : 'Suivez vos demandes de SAV. Une réclamation se dépose sur un achat dont la garantie court encore.' }}</p>
+    </div>
+    <div class="actions"><button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Nouvelle réclamation</button></div>
+  </header>
+
+  @if (list().length > 0) {
+    <div class="chips" style="margin-bottom:1.25rem" role="group" aria-label="Filtrer par statut">
+      <button type="button" class="chip" [class.is-active]="filter() === 'ALL'" (click)="filter.set('ALL')">Toutes <span class="count">{{ counts().ALL }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'OUVERTE'" (click)="filter.set('OUVERTE')">Ouvertes <span class="count">{{ counts().OUVERTE }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'EN_COURS'" (click)="filter.set('EN_COURS')">En cours <span class="count">{{ counts().EN_COURS }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'RESOLUE'" (click)="filter.set('RESOLUE')">Résolues <span class="count">{{ counts().RESOLUE }}</span></button>
+      <button type="button" class="chip" [class.is-active]="filter() === 'REFUSEE'" (click)="filter.set('REFUSEE')">Refusées <span class="count">{{ counts().REFUSEE }}</span></button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="claims">@for (i of [1, 2, 3]; track i) { <div class="skeleton" style="height:150px"></div> }</div>
+  } @else if (error()) {
+    <div class="empty"><span class="empty__icon"><app-icon name="alert" /></span><h3>Réclamations indisponibles</h3><p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button></div>
+  } @else if (list().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="lifebuoy" /></span><h3>Aucune réclamation</h3>
+      <p>Un produit tombe en panne pendant sa garantie ? Ouvrez une réclamation avec un justificatif PDF.</p>
+      <button type="button" class="btn btn--primary" (click)="openForm()"><app-icon name="plus" [size]="18" />Nouvelle réclamation</button></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty"><span class="empty__icon"><app-icon name="search" /></span><h3>Aucune réclamation avec ce statut</h3>
+      <button type="button" class="btn" (click)="filter.set('ALL')">Voir toutes les réclamations</button></div>
+  } @else {
+    <div class="claims">
+      @for (r of filtered(); track r.id) {
+        <article class="claim">
+          <div class="claim__head">
+            <span class="thumb">@if (img(r); as src) { <img [src]="src" alt="" /> }</span>
+            <div style="min-width:0">
+              <h3 class="claim__title">{{ r.motif }}</h3>
+              <p class="claim__sub">{{ r.achat.produit.marque }} {{ r.achat.produit.nom }} · ouverte le {{ r.dateOuverture | frDate }}
+                @if (auth.isAdmin()) { · {{ name(r.achat.user) }} }</p>
+            </div>
+          </div>
+          <div class="claim__side"><app-badge kind="reclamation" [value]="r.statut" /></div>
+          @if (r.description) { <p class="claim__desc">{{ r.description }}</p> }
+          <div class="claim__foot">
+            <div class="steps" aria-label="Avancement de la réclamation">
+              @for (s of steps(r); track $index) {
+                @if ($index > 0) { <span class="bar" [class.is-done]="s.dot !== ''"></span> }
+                <span class="step" [class]="'step ' + s.dot"><span class="step__dot"></span>{{ s.label }}</span>
+              }
+            </div>
+            <div class="claim__btns">
+              @if (r.justificatifPdf) {
+                <button type="button" class="btn btn--sm" (click)="docs.justificatif(r)"><app-icon name="file" [size]="16" />Justificatif</button>
+              }
+              @if (auth.isAdmin()) {
+                @for (s of next(r); track s) {
+                  <button type="button" class="btn btn--sm" [class.btn--primary]="s !== 'REFUSEE'" [class.btn--danger]="s === 'REFUSEE'" (click)="setStatut(r, s)">
+                    {{ s === 'EN_COURS' ? 'Prendre en charge' : s === 'RESOLUE' ? 'Marquer résolue' : 'Refuser' }}
+                  </button>
+                }
+                <button type="button" class="icon-btn icon-btn--danger" title="Supprimer" aria-label="Supprimer la réclamation" (click)="remove(r)"><app-icon name="trash" [size]="18" /></button>
+              }
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>
+
+@if (formOpen()) {
+  <app-modal title="Nouvelle réclamation" (closed)="formOpen.set(false)">
+    @if (eligible().length === 0) {
+      <div class="empty" style="border:0;padding:1rem">
+        <span class="empty__icon"><app-icon name="shield" /></span>
+        <h3>Aucune garantie en cours</h3>
+        <p>Une réclamation ne peut être déposée que sur un achat dont la garantie n’est pas expirée.</p>
+        <button type="button" class="btn" (click)="formOpen.set(false)">Fermer</button>
+      </div>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="r-achat">Achat concerné<span class="req">*</span></label>
+            <select id="r-achat" class="select" formControlName="achatId" [class.is-invalid]="bad('achatId')">
+              <option [ngValue]="null" disabled>Choisir un achat…</option>
+              @for (a of eligible(); track a.id) {
+                <option [ngValue]="a.id">{{ a.produit.marque }} {{ a.produit.nom }} · fin le {{ a.dateFinGarantie | frDate }}</option>
+              }
+            </select>
+            @if (bad('achatId')) { <span class="error">Choisissez l’achat concerné.</span> }
+          </div>
+          <div class="field span-2">
+            <label for="r-motif">Motif<span class="req">*</span></label>
+            <input id="r-motif" class="input" formControlName="motif" list="motifs" placeholder="Panne, écran défectueux…" [class.is-invalid]="bad('motif')" />
+            <datalist id="motifs">@for (m of motifs; track m) { <option [value]="m"></option> }</datalist>
+            @if (bad('motif')) { <span class="error">Indiquez le motif de la réclamation.</span> }
+          </div>
+          <div class="field span-2">
+            <label for="r-desc">Description</label>
+            <textarea id="r-desc" class="textarea" formControlName="description" maxlength="1000" placeholder="Depuis quand ? Que se passe-t-il exactement ?"></textarea>
+          </div>
+          <div class="span-2"><app-file-drop label="Justificatif (facultatif)" kind="pdf" [maxMb]="5" [(file)]="justificatif" /></div>
+        </div>
+        @if (formError(); as e) { <div class="form-error" role="alert" style="margin-top:1rem"><app-icon name="alert" [size]="18" /><span>{{ e }}</span></div> }
+        <div class="form-actions">
+          <button type="button" class="btn" (click)="formOpen.set(false)">Annuler</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> }Envoyer la réclamation</button>
+        </div>
+      </form>
+    }
+  </app-modal>
+}
