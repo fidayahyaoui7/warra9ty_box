@@ -1,6 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { MessageService } from '../services/message.service';
 import { UserService } from '../services/user.service';
 import { fullName } from '../utils/format';
 import { Avatar } from '../shared/avatar/avatar';
@@ -17,6 +20,7 @@ interface Item { path: string; label: string; icon: string; }
 export class Shell {
   auth = inject(AuthService);
   users = inject(UserService);
+  msg = inject(MessageService);
   private router = inject(Router);
 
   open = signal(false);
@@ -29,6 +33,7 @@ export class Shell {
       { path: '/catalogue', label: 'Catalogue', icon: 'box' },
       { path: '/achats', label: admin ? 'Achats' : 'Mes achats', icon: 'receipt' },
       { path: '/reclamations', label: admin ? 'Réclamations' : 'Mes réclamations', icon: 'lifebuoy' },
+      { path: '/messages', label: 'Messages', icon: 'chat' },
     ];
   });
   admin = computed<Item[]>(() => [
@@ -38,6 +43,8 @@ export class Shell {
 
   constructor() {
     if (this.auth.isAdmin()) this.users.list().subscribe({ error: () => undefined });
+    this.msg.refreshUnread();
+    interval(30000).pipe(takeUntilDestroyed()).subscribe(() => { if (!document.hidden) this.msg.refreshUnread(); });
   }
 
   logout() { this.auth.logout(); }

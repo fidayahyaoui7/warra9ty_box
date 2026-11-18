@@ -12,6 +12,7 @@ import com.sip.wbx.entities.Achat;
 import com.sip.wbx.entities.Reclamation;
 import com.sip.wbx.repositories.ReclamationRepository;
 import com.sip.wbx.security.CurrentUser;
+import com.sip.wbx.entities.User;
 
 @Service
 public class ReclamationService {
@@ -28,12 +29,16 @@ public class ReclamationService {
     private final ReclamationRepository repo;
     private final AchatService achatService;
     private final FileStorageService storage;
+    private final MailService mail;
+    private final MessageService messages;
 
     public ReclamationService(ReclamationRepository repo, AchatService achatService,
-                              FileStorageService storage) {
+                              FileStorageService storage, MailService mail, MessageService messages) {
         this.repo = repo;
         this.achatService = achatService;
         this.storage = storage;
+        this.mail = mail;
+        this.messages = messages;
     }
 
     // RG5 : un client voit ses réclamations, l'admin voit tout
@@ -75,13 +80,28 @@ public class ReclamationService {
     }
 
     // RG4 : cycle des statuts (admin)
-    public Reclamation changeStatut(Long id, String statut) {
+    public Reclamation changeStatut(Long id, String statut, String commentaire) {
         Reclamation r = findById(id);
         if (!NEXT.getOrDefault(r.getStatut(), Set.of()).contains(statut))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Transition interdite : " + r.getStatut() + " -> " + statut);
+        if (commentaire != null && commentaire.trim().length() > 1000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le message est limité à 1000 caractères");
         r.setStatut(statut);
-        return repo.save(r);
+        if (commentaire != null && !commentaire.isBlank()) r.setReponseAdmin(commentaire.trim());
+        Reclamation saved = repo.save(r);
+
+        // le client est prévenu par e-mail (envoi en arrière-plan)
+        User client = saved.getAchat().getUser();
+        String produit = saved.getAchat().getProduit().getMarque() + " " + saved.getAchat().getProduit().getNom();
+        mail.notifyReclamationStatut(client.getEmail(), client.getPrenom(), saved.getId(),
+            produit, saved.getStatut(), saved.getReponseAdmin());
+
+        // le message de l'admin est aussi ajouté à la conversation du client (messagerie)
+        if (commentaire != null && !commentaire.isBlank())
+            messages.postStatusNote(client.getId(), saved.getId(),
+                "Réclamation n°" + saved.getId() + " (" + produit + ") : " + commentaire.trim());
+        return saved;
     }
 
     public void delete(Long id) {

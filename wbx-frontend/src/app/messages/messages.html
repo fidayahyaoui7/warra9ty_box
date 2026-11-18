@@ -1,0 +1,130 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Messages</h1>
+      <p>{{ admin() ? 'Répondez à vos clients depuis une seule boîte. Chaque message leur est aussi envoyé par e-mail.' : 'Écrivez à l’équipe Warra9tyBox pour une question sur un achat ou une réclamation. Vous êtes prévenu par e-mail de chaque réponse.' }}</p>
+    </div>
+    @if (admin()) {
+      <div class="actions"><button type="button" class="btn btn--primary" (click)="openNew()"><app-icon name="plus" [size]="18" />Nouvelle conversation</button></div>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="skeleton" style="height:520px"></div>
+  } @else if (error()) {
+    <div class="empty"><span class="empty__icon"><app-icon name="alert" /></span><h3>Messagerie indisponible</h3><p>{{ error() }}</p>
+      <button type="button" class="btn" (click)="load()">Réessayer</button></div>
+  } @else {
+    <div class="inbox" [class.inbox--solo]="!admin()" [class.is-thread]="selected() !== null">
+
+      @if (admin()) {
+        <aside class="inbox__list" aria-label="Conversations">
+          <div class="inbox__search"><div class="input-wrap">
+            <app-icon name="search" [size]="18" />
+            <input class="input" type="search" placeholder="Rechercher un client…" aria-label="Rechercher un client"
+              [value]="query()" (input)="query.set($any($event.target).value)" />
+          </div></div>
+          <div class="inbox__rows">
+            @for (c of filteredConversations(); track c.clientId) {
+              <button type="button" class="conv" [class.is-active]="selected() === c.clientId" [class.is-unread]="c.nonLus > 0" (click)="select(c.clientId)">
+                <app-avatar [user]="c" [size]="40" />
+                <span class="conv__body">
+                  <span class="conv__top"><strong>{{ name(c) }}</strong><time>{{ stamp(c.dateDernierMessage) }}</time></span>
+                  <span class="conv__last">{{ c.dernierDeAdmin ? 'Vous : ' : '' }}{{ c.dernierMessage }}</span>
+                </span>
+                @if (c.nonLus > 0) { <span class="pill" [attr.aria-label]="c.nonLus + ' non lu(s)'">{{ c.nonLus }}</span> }
+              </button>
+            } @empty {
+              <p class="inbox__none">{{ conversations().length === 0 ? 'Aucune conversation pour le moment. Les messages des clients apparaîtront ici.' : 'Aucun client ne correspond à cette recherche.' }}</p>
+            }
+          </div>
+        </aside>
+      }
+
+      @if (admin() && selected() === null) {
+        <section class="chat chat--idle">
+          <span class="empty__icon"><app-icon name="chat" /></span>
+          <h3>Choisissez une conversation</h3>
+          <p>Ou démarrez-en une nouvelle avec un client.</p>
+          <button type="button" class="btn" (click)="openNew()">Nouvelle conversation</button>
+        </section>
+      } @else {
+        <section class="chat" aria-label="Conversation">
+          <header class="chat__head">
+            @if (admin()) {
+              <button type="button" class="icon-btn chat__back" aria-label="Retour aux conversations" (click)="select(null)"><app-icon name="back" /></button>
+              @if (current(); as c) {
+                <app-avatar [user]="c" [size]="40" />
+                <div style="min-width:0"><strong>{{ name(c) }}</strong><small>{{ c.email }}</small></div>
+              }
+            } @else {
+              <span class="chat__team"><img src="favicon.svg" alt="" /></span>
+              <div><strong>Équipe Warra9tyBox</strong><small>Réponse par e-mail et ici même</small></div>
+            }
+          </header>
+
+          <div class="chat__scroll" #scroller>
+            @if (threadLoading()) {
+              <div class="skeleton" style="height:60px;width:60%"></div>
+              <div class="skeleton" style="height:60px;width:50%;align-self:flex-end"></div>
+            } @else if (thread().length === 0) {
+              <p class="chat__empty">{{ admin() ? 'Aucun message échangé avec ce client. Écrivez le premier.' : 'Aucun message pour le moment. Posez votre question à l’équipe, elle vous répondra ici.' }}</p>
+            }
+            @for (g of groups(); track g.label) {
+              <div class="day"><span>{{ g.label }}</span></div>
+              @for (m of g.items; track m.id) {
+                <div class="msg" [class.msg--mine]="m.deAdmin === admin()">
+                  <div class="bubble">
+                    @if (m.reclamationId) {
+                      <span class="bubble__ref"><app-icon name="lifebuoy" [size]="14" />Réclamation n°{{ m.reclamationId }}@if (claimOf(m.reclamationId); as r) { · {{ r.motif }} }</span>
+                    }
+                    <p>{{ m.contenu }}</p>
+                    <span class="bubble__meta">{{ time(m.dateEnvoi) }}@if (m.deAdmin === admin()) { · {{ m.lu ? 'Lu' : 'Envoyé' }} }</span>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+
+          <form class="composer" (submit)="$event.preventDefault(); send()">
+            @if (aboutChoices().length > 0) {
+              <div class="composer__about">
+                <label for="m-about">À propos de</label>
+                <select id="m-about" class="select" (change)="about.set($any($event.target).value ? +$any($event.target).value : null)">
+                  <option value="" [selected]="about() === null">Question générale</option>
+                  @for (r of aboutChoices(); track r.id) { <option [value]="r.id" [selected]="about() === r.id">Réclamation n°{{ r.id }} · {{ r.motif }}</option> }
+                </select>
+              </div>
+            }
+            <div class="composer__row">
+              <textarea class="textarea" rows="2" [maxLength]="max" aria-label="Votre message"
+                [placeholder]="admin() ? 'Votre réponse…' : 'Votre message à l’équipe…'"
+                [value]="draft()" (input)="draft.set($any($event.target).value)" (keydown.enter)="onEnter($event)"></textarea>
+              <button type="submit" class="btn btn--primary composer__send" [disabled]="!canSend()">
+                @if (sending()) { <span class="spinner"></span> } @else { <app-icon name="send" [size]="18" /> }Envoyer
+              </button>
+            </div>
+            <small class="composer__hint">Entrée pour envoyer, Maj + Entrée pour passer à la ligne.@if (remaining() < 200) { <b [class.is-over]="remaining() < 0"> {{ remaining() }} caractères restants</b> }</small>
+          </form>
+        </section>
+      }
+    </div>
+  }
+</div>
+
+@if (newOpen()) {
+  <app-modal title="Nouvelle conversation" (closed)="newOpen.set(false)">
+    <div class="field">
+      <label for="m-client">Client</label>
+      <select id="m-client" class="select" [value]="newClient() ?? ''" (change)="newClient.set($any($event.target).value ? +$any($event.target).value : null)">
+        <option value="">Choisir un client…</option>
+        @for (u of newChoices(); track u.id) { <option [value]="u.id">{{ name(u) }} · {{ u.email }}</option> }
+      </select>
+      @if (newChoices().length === 0) { <span class="hint">Aucun compte client actif pour le moment.</span> }
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn" (click)="newOpen.set(false)">Annuler</button>
+      <button type="button" class="btn btn--primary" [disabled]="newClient() === null" (click)="startNew()">Ouvrir la conversation</button>
+    </div>
+  </app-modal>
+}

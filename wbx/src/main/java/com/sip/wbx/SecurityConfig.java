@@ -84,9 +84,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/produits/**").authenticated()
                 .requestMatchers("/api/categories/**", "/api/produits/**").hasRole("ADMIN")
                 // admin-only areas
-                .requestMatchers("/api/users/**", "/api/reclamations/all").hasRole("ADMIN")
+                .requestMatchers("/api/users/**", "/api/reclamations/all", "/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/reclamations/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/reclamations/**").hasRole("ADMIN")
+                // messagerie : le client écrit à l'équipe (l'admin utilise /api/admin/messages)
+                .requestMatchers("/api/messages/**").hasRole("CLIENT")
                 // the rest of the API: logged-in users
                 .requestMatchers("/api/**").authenticated()
                 // Angular files served from static/ (index.html, js, css...)

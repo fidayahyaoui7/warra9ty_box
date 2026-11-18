@@ -14,6 +14,7 @@ export const routes: Routes = [
       { path: 'catalogue', loadComponent: () => import('./catalogue/catalogue').then(m => m.Catalogue), title: 'Catalogue · Warra9tyBox' },
       { path: 'achats', loadComponent: () => import('./achats/achats').then(m => m.Achats), title: 'Achats · Warra9tyBox' },
       { path: 'reclamations', loadComponent: () => import('./reclamations/reclamations').then(m => m.Reclamations), title: 'Réclamations · Warra9tyBox' },
+      { path: 'messages', loadComponent: () => import('./messages/messages').then(m => m.Messages), title: 'Messages · Warra9tyBox' },
       { path: 'profil', loadComponent: () => import('./profil/profil').then(m => m.Profil), title: 'Mon profil · Warra9tyBox' },
       { path: 'categories', canActivate: [roleGuard], data: { role: 'ADMIN' }, loadComponent: () => import('./categories/categories').then(m => m.Categories), title: 'Catégories · Warra9tyBox' },
       { path: 'utilisateurs', canActivate: [roleGuard], data: { role: 'ADMIN' }, loadComponent: () => import('./utilisateurs/utilisateurs').then(m => m.Utilisateurs), title: 'Utilisateurs · Warra9tyBox' },

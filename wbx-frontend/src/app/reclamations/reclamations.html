@@ -43,6 +43,9 @@
           </div>
           <div class="claim__side"><app-badge kind="reclamation" [value]="r.statut" /></div>
           @if (r.description) { <p class="claim__desc">{{ r.description }}</p> }
+          @if (r.reponseAdmin) {
+            <div class="claim__reply"><strong><app-icon name="chat" [size]="16" />Réponse de l’équipe</strong><p>{{ r.reponseAdmin }}</p></div>
+          }
           <div class="claim__foot">
             <div class="steps" aria-label="Avancement de la réclamation">
               @for (s of steps(r); track $index) {
@@ -54,6 +57,7 @@
               @if (r.justificatifPdf) {
                 <button type="button" class="btn btn--sm" (click)="docs.justificatif(r)"><app-icon name="file" [size]="16" />Justificatif</button>
               }
+              <button type="button" class="btn btn--sm" (click)="write(r)"><app-icon name="chat" [size]="16" />{{ auth.isAdmin() ? 'Écrire au client' : 'Écrire à l’équipe' }}</button>
               @if (auth.isAdmin()) {
                 @for (s of next(r); track s) {
                   <button type="button" class="btn btn--sm" [class.btn--primary]="s !== 'REFUSEE'" [class.btn--danger]="s === 'REFUSEE'" (click)="setStatut(r, s)">
@@ -111,5 +115,27 @@
         </div>
       </form>
     }
+  </app-modal>
+}
+
+@if (statutTarget(); as t) {
+  <app-modal [title]="statutTitle(t.s)" (closed)="statutTarget.set(null)">
+    <p style="color:var(--ink-2);margin-bottom:1rem">
+      Réclamation « {{ t.r.motif }} » de {{ name(t.r.achat.user) }}.
+      @if (t.s !== 'EN_COURS') { Le statut sera définitif : une réclamation résolue ou refusée ne peut plus changer. }
+      Le client est prévenu par e-mail.
+    </p>
+    <div class="field">
+      <label for="s-note">Message pour le client (facultatif)</label>
+      <textarea id="s-note" class="textarea" maxlength="1000" [value]="statutNote()" (input)="statutNote.set($any($event.target).value)"
+        [placeholder]="t.s === 'REFUSEE' ? 'Expliquez la raison du refus…' : t.s === 'RESOLUE' ? 'Décrivez ce qui a été fait…' : 'Ex. : merci de nous apporter le produit en magasin.'"></textarea>
+      <span class="hint">Ce message est joint à l’e-mail et ajouté à la conversation du client.</span>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn" (click)="statutTarget.set(null)">Annuler</button>
+      <button type="button" class="btn" [class.btn--primary]="t.s !== 'REFUSEE'" [class.btn--danger-solid]="t.s === 'REFUSEE'" [disabled]="statutSaving()" (click)="confirmStatut()">
+        @if (statutSaving()) { <span class="spinner"></span> }{{ t.s === 'EN_COURS' ? 'Prendre en charge' : t.s === 'RESOLUE' ? 'Marquer résolue' : 'Refuser' }}
+      </button>
+    </div>
   </app-modal>
 }

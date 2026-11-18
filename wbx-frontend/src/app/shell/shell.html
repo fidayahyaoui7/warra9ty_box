@@ -9,7 +9,9 @@
     <a class="sidebar__brand" routerLink="/tableau-de-bord"><img src="favicon.svg" alt="" /><span>Warra9ty<b>Box</b></span></a>
     <nav class="sidebar__nav">
       @for (i of main(); track i.path) {
-        <a class="sidebar__link" [routerLink]="i.path" routerLinkActive="is-active" (click)="open.set(false)"><app-icon [name]="i.icon" />{{ i.label }}</a>
+        <a class="sidebar__link" [routerLink]="i.path" routerLinkActive="is-active" (click)="open.set(false)"><app-icon [name]="i.icon" />{{ i.label }}
+          @if (i.path === '/messages' && msg.unread() > 0) { <span class="pill" title="Messages non lus">{{ msg.unread() }}</span> }
+        </a>
       }
       @if (auth.isAdmin()) {
         <span class="group">Administration</span>

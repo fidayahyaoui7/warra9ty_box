@@ -17,8 +17,10 @@ export class ReclamationService {
     return this.http.post<Reclamation>(`${api}/reclamations`, multipart({ reclamation: r }, { justificatif }),
       { params: new HttpParams().set('achatId', achatId) });
   }
-  setStatut(id: number, statut: StatutReclamation) {
-    return this.http.patch<Reclamation>(`${api}/reclamations/${id}/statut`, null, { params: new HttpParams().set('statut', statut) });
+  setStatut(id: number, statut: StatutReclamation, commentaire?: string | null) {
+    let params = new HttpParams().set('statut', statut);
+    if (commentaire?.trim()) params = params.set('commentaire', commentaire.trim());
+    return this.http.patch<Reclamation>(`${api}/reclamations/${id}/statut`, null, { params });
   }
   remove(id: number) { return this.http.delete<void>(`${api}/reclamations/${id}`); }
 }

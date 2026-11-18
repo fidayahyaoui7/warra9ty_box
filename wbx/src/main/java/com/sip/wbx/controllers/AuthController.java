@@ -51,6 +51,7 @@ public class AuthController {
         u.setEnabled(false);                       // the admin must activate the account
         u.setRoles(Set.of(client));
         userRepo.save(u);
+        mail.sendWelcome(u);                       // bienvenue à l'utilisateur
         mail.notifyAdminNewUser(u);                // l'admin reçoit un email pour activer le compte
 
         return Map.of("message", "Compte créé. Il sera utilisable après activation par l'administrateur.");

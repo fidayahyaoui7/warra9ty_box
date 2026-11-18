@@ -53,8 +53,9 @@ public class ReclamationController {
     }
 
     @PatchMapping("/{id}/statut")                        // admin seulement (SecurityConfig)
-    public Reclamation statut(@PathVariable Long id, @RequestParam String statut) {
-        return service.changeStatut(id, statut);
+    public Reclamation statut(@PathVariable Long id, @RequestParam String statut,
+                              @RequestParam(required = false) String commentaire) {
+        return service.changeStatut(id, statut, commentaire);
     }
 
     @DeleteMapping("/{id}")                              // admin seulement (SecurityConfig)

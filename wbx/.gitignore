@@ -43,3 +43,5 @@ src/main/resources/static/*
 
 ### Fichiers uploadés en production ###
 uploads/profils/
+
+secrets.properties

@@ -25,6 +25,9 @@ public class Achat {
     private String facturePdf;           // nom du fichier PDF
     private String photoAchat;           // nom du fichier image
 
+    @JsonIgnore
+    private Boolean rappelEnvoye = false;   // e-mail de rappel déjà envoyé pour cette garantie ?
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id")
     private User user;

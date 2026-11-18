@@ -127,19 +127,38 @@ export class Reclamations {
     });
   }
 
-  async setStatut(r: Reclamation, s: StatutReclamation) {
-    if (s !== 'EN_COURS') {
-      const ok = await this.confirm.ask({
-        title: s === 'RESOLUE' ? 'Marquer comme résolue ?' : 'Refuser la réclamation ?',
-        message: 'Le statut sera définitif : une réclamation résolue ou refusée ne peut plus changer.',
-        confirmLabel: s === 'RESOLUE' ? 'Marquer résolue' : 'Refuser', danger: s === 'REFUSEE',
-      });
-      if (!ok) return;
-    }
-    this.claimApi.setStatut(r.id, s).subscribe({
-      next: () => { this.toast.success(s === 'EN_COURS' ? 'Réclamation prise en charge.' : s === 'RESOLUE' ? 'Réclamation résolue.' : 'Réclamation refusée.'); this.load(); },
-      error: e => this.toast.error(errorMessage(e)),
+  // changement de statut (admin) : une fenêtre propose d'ajouter un message pour le client
+  statutTarget = signal<{ r: Reclamation; s: StatutReclamation } | null>(null);
+  statutNote = signal('');
+  statutSaving = signal(false);
+
+  setStatut(r: Reclamation, s: StatutReclamation) {
+    this.statutNote.set('');
+    this.statutTarget.set({ r, s });
+  }
+
+  statutTitle(s: StatutReclamation) {
+    return s === 'EN_COURS' ? 'Prendre en charge la réclamation' : s === 'RESOLUE' ? 'Marquer comme résolue' : 'Refuser la réclamation';
+  }
+
+  confirmStatut() {
+    const t = this.statutTarget();
+    if (!t || this.statutSaving()) return;
+    this.statutSaving.set(true);
+    this.claimApi.setStatut(t.r.id, t.s, this.statutNote()).subscribe({
+      next: () => {
+        this.statutSaving.set(false);
+        this.statutTarget.set(null);
+        this.toast.success(t.s === 'EN_COURS' ? 'Réclamation prise en charge.' : t.s === 'RESOLUE' ? 'Réclamation résolue.' : 'Réclamation refusée.');
+        this.load();
+      },
+      error: e => { this.statutSaving.set(false); this.toast.error(errorMessage(e)); },
     });
+  }
+
+  // vers la messagerie, avec la réclamation (et le client pour l'admin) déjà choisis
+  write(r: Reclamation) {
+    this.router.navigate(['/messages'], { queryParams: this.auth.isAdmin() ? { client: r.achat.user.id, reclamation: r.id } : { reclamation: r.id } });
   }
 
   async remove(r: Reclamation) {

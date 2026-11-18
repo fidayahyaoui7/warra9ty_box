@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/target
+**/dist
+**/.angular
+**/.idea
+**/.settings
+wbx/src/main/resources/static

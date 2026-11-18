@@ -2,6 +2,7 @@ package com.sip.wbx.services;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,6 +71,7 @@ public class AchatService {
         User u = userRepo.findById(ownerId).orElseThrow(() ->
             new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable : " + ownerId));
         a.setId(null);
+        a.setRappelEnvoye(false);
         a.setUser(u);
         fillProduitAndDates(a);
 
@@ -87,7 +89,10 @@ public class AchatService {
         existing.setNumeroSerie(in.getNumeroSerie());
         existing.setDureeGarantie(in.getDureeGarantie());
         existing.setProduit(in.getProduit());
+        LocalDate ancienneFin = existing.getDateFinGarantie();
         fillProduitAndDates(existing);
+        if (!Objects.equals(ancienneFin, existing.getDateFinGarantie()))
+            existing.setRappelEnvoye(false);          // nouvelle échéance : le rappel redevient possible
 
         if (facture != null && !facture.isEmpty()) {
             String name = storage.save(facture, "factures", FileStorageService.PDF, MAX_PDF);

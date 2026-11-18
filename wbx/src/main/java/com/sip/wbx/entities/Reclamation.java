@@ -17,6 +17,7 @@ public class Reclamation {
 
     private String statut = "OUVERTE";   // OUVERTE, EN_COURS, RESOLUE, REFUSEE
     private String justificatifPdf;      // nom du fichier PDF
+    @Column(length = 1000) private String reponseAdmin;   // message de l'admin lors du changement de statut (optionnel)
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "achat_id")
