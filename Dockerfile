@@ -8,13 +8,15 @@ COPY wbx-frontend/package*.json ./
 RUN npm ci
 COPY wbx-frontend/ ./
 RUN npm run build:wbx
+# on retrouve le dossier qui contient index.html, quel que soit l'emplacement de sortie
+RUN d="$(dirname "$(find dist -name index.html | head -n 1)")" && echo "Sortie Angular : $d" && mkdir -p /out && cp -r "$d"/. /out/
 
 # 2) Jar Spring Boot (l'interface construite est copiée dans static/)
 FROM maven:3.9-eclipse-temurin-17 AS back
 WORKDIR /app
 COPY wbx/pom.xml ./
 COPY wbx/src ./src
-COPY --from=front /front/dist/wbx-static/ ./src/main/resources/static/
+COPY --from=front /out/ ./src/main/resources/static/
 RUN mvn -B -q clean package -DskipTests
 
 # 3) Exécution
