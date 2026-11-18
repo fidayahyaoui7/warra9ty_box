@@ -9,7 +9,9 @@ RUN npm ci
 COPY wbx-frontend/ ./
 RUN npm run build:wbx
 # on retrouve le dossier qui contient index.html, quel que soit l'emplacement de sortie
-RUN d="$(dirname "$(find dist -name index.html | head -n 1)")" && echo "Sortie Angular : $d" && mkdir -p /out && cp -r "$d"/. /out/
+RUN f="$(find dist -name index.html | head -n 1)"; \
+    if [ -z "$f" ]; then echo "ERREUR : index.html introuvable apres le build Angular"; ls -R dist | head -50; exit 1; fi; \
+    d="$(dirname "$f")"; echo "Sortie Angular : $d"; mkdir -p /out && cp -r "$d"/. /out/ && ls /out
 
 # 2) Jar Spring Boot (l'interface construite est copiée dans static/)
 FROM maven:3.9-eclipse-temurin-17 AS back
@@ -18,6 +20,8 @@ COPY wbx/pom.xml ./
 COPY wbx/src ./src
 COPY --from=front /out/ ./src/main/resources/static/
 RUN mvn -B -q clean package -DskipTests
+# verification : le jar doit contenir l'interface Angular
+RUN jar tf target/wbx.jar | grep -q "BOOT-INF/classes/static/index.html" || (echo "ERREUR : index.html absent du jar" && exit 1)
 
 # 3) Exécution
 FROM eclipse-temurin:17-jre
