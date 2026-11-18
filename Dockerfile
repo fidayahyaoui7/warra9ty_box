@@ -7,7 +7,8 @@ WORKDIR /front
 COPY wbx-frontend/package*.json ./
 RUN npm ci
 COPY wbx-frontend/ ./
-RUN npm run build:wbx
+# sortie imposée (la configuration Angular du dépôt peut écrire ailleurs)
+RUN npx ng build --configuration wbx --output-path=dist/ng-out
 # on retrouve le dossier qui contient index.html, quel que soit l'emplacement de sortie
 RUN f="$(find dist -name index.html | head -n 1)"; \
     if [ -z "$f" ]; then echo "ERREUR : index.html introuvable apres le build Angular"; ls -R dist | head -50; exit 1; fi; \
